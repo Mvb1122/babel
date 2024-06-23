@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Babel Transcriber</title>
+
+    <style>
+        body {
+            background-color: black;
+            color: white;
+            font-family: sans-serif;
+            font-size: large;
+        }
+
+        table {
+            width: 98vw;
+        }
+
+        tr:first-child {
+            font-weight: bold;
+        }
+
+        tr {
+            vertical-align: top;
+        }
+
+        /* Time */
+        td:nth-child(0) {
+            color: blue;
+            width: min-content;
+        }
+
+        /* User */
+        td:nth-child(2) {
+            color: purple;
+            width: min-content;
+        }
+
+        /* Source */
+        td:nth-child(3) {
+            color: lime;
+            width: min-content;
+        }
+
+        /* Content in original language */
+        td:nth-child(4):first-line {
+            color: white;
+            flex-wrap: wrap;
+        }
+
+        /* English translation */
+        td > p {
+            color: rgb(75, 75, 75);
+            flex-wrap: wrap;
+            font-size: smaller;
+        }
+    </style>
+</head>
+<body>
+    <button id="StartButton">Start!</button>
+    <button id="TestButton">Test!</button>
+    <p id="Header">⚪</p>
+    <table>
+        <tr>
+            <th>Time</th>
+            <th>User</th>
+            <th>Source</th>
+            <th>Content</th>
+        </tr>
+
+        <tbody id="List">
+            <tr>
+                <td>[11:25]</td>
+                <td>Micah</td>
+                <td>JP</td>
+                <td>
+                    コンテント コンテント コンテント コンテント コンテント コンテント コンテント コンテント コンテント コンテント コンテント コンテント コンテント コンテント コンテント
+                    <p>Content Content Content Content Content Content Content Content Content Content Content Content Content Content Content Content Content Content Content</p>       
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <script type="module">
+        import * as x from './web_index.js' // Just import everything in order to run the file. The code will handle itself from there.
+    </script>
+</body>
+</html>

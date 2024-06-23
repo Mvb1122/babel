@@ -1,0 +1,23 @@
+{
+  "name": "babel",
+  "version": "1.0.0",
+  "description": "Takes in audio of various kinds and translates it to English using a whisper flask server. Includes a WebUI for easy use. Optional support for speaker identification.",
+  "main": "index.js",
+  "scripts": {
+    "test": "node index.js"
+  },
+  "keywords": [
+    "ai",
+    "whisper",
+    "node",
+    "python",
+    "babel",
+    "translation"
+  ],
+  "author": "micahb.dev",
+  "license": "ISC",
+  "dependencies": {
+    "cmake-js": "^7.3.0",
+    "number-to-words": "^1.2.4"
+  }
+}
