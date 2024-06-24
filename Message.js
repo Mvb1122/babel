@@ -1,3 +1,9 @@
+function PadNumberToWidthTwo(number) {
+    const s = number.toString();
+    if (s.length < 2) return '0' + s;
+    else return s;
+}
+
 export default class Message {
     /** @type {Date} */
     #Time
@@ -48,6 +54,8 @@ export default class Message {
     }
 
     GetTimeInReadableFormat() {
-        return `[${this.#Time.getHours()}:${this.#Time.getMinutes()}]`;
+        let hours = PadNumberToWidthTwo(this.#Time.getHours());
+        let minutes = PadNumberToWidthTwo(this.#Time.getMinutes());
+        return `[${hours}:${minutes}]`;
     }
 }

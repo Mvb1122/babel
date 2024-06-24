@@ -1,0 +1,3 @@
+# Just a funny weekend project I did.
+It's not really that interesting, but it's a transcriber which also translates languages into English. Obviously Google could do a similar thing, but I like this idea.
+I have plans to add a user idenfitication model onto the system as well, but I don't know how well it'll work...

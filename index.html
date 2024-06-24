@@ -55,12 +55,25 @@
             flex-wrap: wrap;
             font-size: smaller;
         }
+
+        /* Header */
+        body > div {
+            display: flex;
+            flex-direction: row;
+            height: 1.2em;
+        }
+
+        p[id="Header"] {
+            margin-block-start: 0;
+        }
     </style>
 </head>
 <body>
-    <button id="StartButton">Start!</button>
-    <button id="TestButton">Test!</button>
-    <p id="Header">⚪</p>
+    <div>
+        <button id="StartButton">Start!</button>
+        <button id="TestButton">Test!</button>
+        <p id="Header">⚪</p>
+    </div>
     <table>
         <tr>
             <th>Time</th>
