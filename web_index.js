@@ -28,9 +28,12 @@ export async function Test() {
 
 document.getElementById("TestButton").onclick = Test;
 
-// Start looking at the audio values on start.
+// Define the emoji symbols for recording being on/off
 const StatusOnSymbol = '🟢'
 const StatusOffSymbol = '🔴'
+
+const rootStyles = window.getComputedStyle(document.documentElement);
+const maxConfidenceWidth = rootStyles.getPropertyValue('--max-confidence-width');
 
 let avgAudio = 1e-63;
 let MinCheckTime = 0.17;
@@ -44,12 +47,17 @@ async function AudioLoop() {
         await new Promise(res => {
             setTimeout(async () => {
                 vol = await vol;
-                avgAudio += (vol + avgAudio) / 2 // Decrease the effect that a single moment has.
-                avgAudio /= 2;
+                if (CurrentMessage != null) {
+                    avgAudio += (vol + avgAudio * 2) / 3 // Decrease the effect that a single moment has.
+                    avgAudio /= 2;
+                } else {
+                    avgAudio += (vol + avgAudio * 5) / 6 // Decrease the effect that a single moment has.
+                    avgAudio /= 2;
+                }
                 
-                if (vol > avgAudio && CurrentMessage == null && confidence < 1) confidence += 0.5;
-                else if (vol > avgAudio && CurrentMessage != null && confidence < 1) confidence += 0.04;
-                else if (vol < avgAudio && confidence > 0) confidence -= 0.04;
+                if (vol > avgAudio && CurrentMessage == null && confidence < 1) confidence += 0.4;
+                else if (vol > avgAudio && CurrentMessage != null && confidence < 1) confidence += 0.06;
+                else if (vol < avgAudio && confidence > 0) confidence -= 0.045;
                 
                 console.log({avg: avgAudio, vol: vol, confidence: confidence});
                 
@@ -63,6 +71,9 @@ async function AudioLoop() {
                     CurrentMessage = new AutoMessage();
                     document.getElementById("Header").innerText = StatusOnSymbol;
                 }
+
+                // Set confidence meter.
+                document.getElementById("ConfidenceDisplayInner").style.width = `calc(${confidence} * ${maxConfidenceWidth})`;
 
                 res();
             }, MinCheckTime * 3);

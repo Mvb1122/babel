@@ -6,6 +6,11 @@
     <title>Babel Transcriber</title>
 
     <style>
+        :root {
+            --max-confidence-width: 20vw;
+            scrollbar-width: none;
+        }
+
         body {
             background-color: black;
             color: white;
@@ -63,8 +68,23 @@
             height: 1.2em;
         }
 
+        /* Recording status */
         p[id="Header"] {
             margin-block-start: 0;
+        }
+
+        /* Confidence bar display */
+        div[id="ConfidenceDisplay"] {
+            width: var(--max-confidence-width);
+            height: 100%;
+            background-color:lightgray;
+            margin-left: 1em;
+        }
+
+        div[id="ConfidenceDisplayInner"] {
+            /* width: calc(attr(confidence) * var(--max-confidence-width)); */
+            height: 100%;
+            background-color: green;
         }
     </style>
 </head>
@@ -73,6 +93,9 @@
         <button id="StartButton">Start!</button>
         <button id="TestButton">Test!</button>
         <p id="Header">⚪</p>
+        <div id="ConfidenceDisplay">
+            <div id="ConfidenceDisplayInner" confidence="1"></div>
+        </div>
     </div>
     <table>
         <tr>
