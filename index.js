@@ -269,7 +269,9 @@ function parseQuery(queryString) {
 // Efficiently wipe temp directory on boot.
 if (!DEBUG) {
     const fp = require('fs/promises');
-    fs.readdirSync("./Temp/").forEach(f => fp.unlink(`./Temp/${f}`));
+    if (fs.existsSync("./Temp/"))
+        fs.readdirSync("./Temp/").forEach(f => fp.unlink(`./Temp/${f}`));
+    else fp.mkdir("./Temp/")
 }
 
 const global = {
