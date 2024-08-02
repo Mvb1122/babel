@@ -278,7 +278,7 @@ const global = {
     decoders: {}
 };
 
-module.exports = { GetFileFromCache, GetFileSizeInMegabytes, getMime, DEBUG, global }
+module.exports = { GetFileFromCache, GetFileSizeInMegabytes, getMime, DEBUG, global, StartServer }
 
 // If we're not in debug mode, ignore all errors. 
 if (!DEBUG) 
@@ -288,30 +288,5 @@ if (!DEBUG)
     });
 
 // Preload on server boot!
-const { Preload, PreloadTranscribe, Transcribe } = require('./VoiceV2');
-Preload().then(async () => {
-    await PreloadTranscribe();
-
-    const DemoEnabled = false;
-
-    if (!DemoEnabled) return Transcribe("./Demo_Audio/de.wav").then(() => {
-        StartServer();
-        console.log("Ready!");
-    });
-
-    const DemoAudioPath = "./Demo_Audio/";
-    const paths = fs.readdirSync(DemoAudioPath);
-    
-    for (let i = 0; i < 10; i++)
-        for (let j = 0; j < paths.length; j++) {
-            const f = paths[j];
-
-            for (let p = 0; p < 2; p++) {
-                let timeTaken = performance.now();
-                const x = await Transcribe(DemoAudioPath + f);
-                timeTaken = ((performance.now() - timeTaken)/1000).toFixed(2)
-                x.timeTaken = timeTaken;
-                console.log(x)
-            }
-        }
-})
+const { bootup } = require('./Bootup');
+bootup(true);
