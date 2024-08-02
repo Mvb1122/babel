@@ -11,9 +11,6 @@ import time
 import torchaudio
 from audio_denoiser.AudioDenoiser import AudioDenoiser
 
-# import huggingface_hub
-# huggingface_hub.login('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') # Don't steal my token please (ó﹏ò｡)
-
 used_time = time.time()
 embedding_file_name = "./Voice Embeddings/New_Embedding.bin"
 
