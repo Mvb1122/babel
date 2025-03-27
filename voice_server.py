@@ -1,4 +1,4 @@
-transcription_model_id = "openai/whisper-medium"
+transcription_model_id = "openai/whisper-large-v3-turbo"
 musicgen_model_id = "facebook/musicgen-stereo-small"
 tts_model_id = "microsoft/speecht5_tts"
 
@@ -41,15 +41,14 @@ def MakeTranscriber():
   global transcriber
   from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor
   torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
-  model_id = "openai/whisper-large-v3"
   model = AutoModelForSpeechSeq2Seq.from_pretrained(
-    model_id, torch_dtype=torch_dtype, 
+    transcription_model_id, torch_dtype=torch_dtype, 
     low_cpu_mem_usage=True, 
     use_safetensors=True,
     attn_implementation=attn_implementation
   )
   model.to(device)
-  processor = AutoProcessor.from_pretrained(model_id)
+  processor = AutoProcessor.from_pretrained(transcription_model_id)
 
   transcriber = pipeline(
     "automatic-speech-recognition",
@@ -67,7 +66,6 @@ def MakeTranscriber():
   return transcriber
 
 # Language Identification stuff.
-from speechbrain.inference.classifiers import EncoderClassifier
 language_id = None
 
 # Simple request, used for identifying when to translate.
@@ -102,6 +100,8 @@ def transcribe(path):
   }
   print(data)
   return data
+
+transcriber = MakeTranscriber()
 
 translator = None
 last_trans_id = None
