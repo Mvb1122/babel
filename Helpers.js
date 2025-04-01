@@ -29,7 +29,7 @@ export function postJSON(URL, data, stringify = true, type = 'application/json')
     })
 }
 
-let scriptProcessor = null, stream = null;
+let scriptProcessor = null, stream = null, analyser = null;
 // Extract creating audio stream out, to persist it over time.
 async function setupVolumeTrackerStream() {
     try {
@@ -38,7 +38,7 @@ async function setupVolumeTrackerStream() {
             video: false
         });
         const audioContext = new AudioContext();
-        const analyser = audioContext.createAnalyser();
+        analyser = audioContext.createAnalyser();
         const microphone = audioContext.createMediaStreamSource(await stream);
         scriptProcessor = audioContext.createScriptProcessor(16384, 1, 1);
 
@@ -68,16 +68,21 @@ async function stopVolumeTrackerStream() {
 */
 export function GetAverageVolume() {
     return new Promise(async (resolve, reject) => {
-        if (scriptProcessor == null) await setupVolumeTrackerStream();
+        // if (scriptProcessor == null) await setupVolumeTrackerStream();
 
-        scriptProcessor.onaudioprocess = function() {
-            const array = new Uint8Array(analyser.frequencyBinCount);
-            analyser.getByteFrequencyData(array);
-            const arraySum = array.reduce((a, value) => a + value, 0);
-            const average = arraySum / array.length;
+        if (scriptProcessor != null)
+            scriptProcessor.onaudioprocess = function() {
+                const array = new Uint8Array(analyser.frequencyBinCount);
+                analyser.getByteFrequencyData(array);
+                const arraySum = array.reduce((a, value) => a + value, 0);
+                const average = arraySum / array.length;
 
-            resolve(Math.round(average));
-        };
+                // Remove this listener after we're done. 
+                scriptProcessor.onaudioprocess = null;
+
+                resolve(Math.round(average));
+            };
+        else resolve(0);
     })
 }
 
@@ -88,3 +93,11 @@ export function blobToBase64(blob) {
         reader.readAsDataURL(blob);
     });
 }
+
+// Make it so the volume tracker is started after clicking. 
+document.addEventListener('click', async () => {
+    if (scriptProcessor == null) {
+        await setupVolumeTrackerStream();
+        console.log("Audio tracker setup.")
+    }
+})

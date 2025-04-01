@@ -12,11 +12,12 @@ module.exports = {
         
             const DemoEnabled = false;
         
-            if (!DemoEnabled) return Transcribe("./Demo_Audio/de.wav").then(() => {
-                if (start)
-                    StartServer();
+            if (!DemoEnabled)  {
+                await Transcribe("./Demo_Audio/de.wav");
                 console.log("Ready!");
-            });
+                if (start)
+                    await StartServer();
+            }
         
             const DemoAudioPath = "./Demo_Audio/";
             const paths = fs.readdirSync(DemoAudioPath);

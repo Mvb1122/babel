@@ -63,7 +63,7 @@ const PhoneticSymbols = [
 /**
  * A boolean which states if the voice server has already been started. Should be treated as read-only.
  */
-let Started = false, 
+let Started = true, 
 /** A boolean which states if the transcription AI has been loaded or not. */
 transcribe_loaded = false;
 

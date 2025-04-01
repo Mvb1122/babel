@@ -7,7 +7,7 @@ export async function Test() {
     
     const Prevolume = await GetAverageVolume();
     console.log(Prevolume)
-    if (Prevolume == 0) alert("Check your microphone! I don't hear anything!");
+    if (Prevolume == 0) alert("Check your microphone! I don't hear anything! Maybe click on the screen?");
 
     const recording = new Recorder();
 

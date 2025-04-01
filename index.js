@@ -287,6 +287,7 @@ if (!DEBUG)
         console.log(err);
     });
 
-// Preload on server boot!
+//Preload on server boot!
 const { bootup } = require('./Bootup');
 bootup(true);
+StartServer();
