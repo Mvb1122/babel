@@ -61,13 +61,13 @@ async function AudioLoop() {
                 
                 console.log({avg: avgAudio, vol: vol, confidence: confidence});
                 
-                if (confidence < 0.5 && CurrentMessage != null) {
+                if (confidence < 0.4 && CurrentMessage != null) {
                     CurrentMessage.stop();
                     CurrentMessage = null;
                     document.getElementById("Header").innerText = StatusOffSymbol;
                 }
 
-                else if (confidence > 0.5 && CurrentMessage == null) { // || (vol == 0 && 0 == avgAudio)
+                else if (confidence > 0.4 && CurrentMessage == null) { // || (vol == 0 && 0 == avgAudio)
                     CurrentMessage = new AutoMessage();
                     document.getElementById("Header").innerText = StatusOnSymbol;
                 }
@@ -76,7 +76,7 @@ async function AudioLoop() {
                 document.getElementById("ConfidenceDisplayInner").style.width = `calc(${confidence} * ${maxConfidenceWidth})`;
 
                 res();
-            }, MinCheckTime * 3);
+            }, MinCheckTime * 2);
         })
     } while (true);
 }
