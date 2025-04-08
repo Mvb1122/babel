@@ -48,14 +48,14 @@ async function AudioLoop() {
             setTimeout(async () => {
                 vol = await vol;
                 if (CurrentMessage != null) {
-                    avgAudio += (vol + avgAudio * 2) / 3 // Decrease the effect that a single moment has.
-                    avgAudio /= 2;
+                    avgAudio += (vol + avgAudio * 2) / 3 // Decrease the effect that a single moment has.    
                 } else {
-                    avgAudio += (vol + avgAudio * 5) / 6 // Decrease the effect that a single moment has.
-                    avgAudio /= 2;
+                    avgAudio += (vol + avgAudio * 3) / 4 // Decrease the effect that a single moment has.
                 }
                 
-                if (vol > avgAudio && CurrentMessage == null && confidence < 1) confidence += 0.4;
+                avgAudio /= 2; // Constant decay.
+
+                if (vol > avgAudio && CurrentMessage == null && confidence < 1) confidence += 0.5;
                 else if (vol > avgAudio && CurrentMessage != null && confidence < 1) confidence += 0.06;
                 else if (vol < avgAudio && confidence > 0) confidence -= 0.045;
                 

@@ -12,6 +12,16 @@ function ArrayBufferToBase64(buffer) {
     return window.btoa(binary);
 }
 
+/**
+ * @param {Number} ms 
+ * @returns {Promise}
+ */
+function waitMS(ms) {
+    return new Promise(res => setTimeout(() => {
+        res();
+    }, ms));
+}
+
 export default class AutoMessage {
     #Recorder
     constructor() {
@@ -20,6 +30,8 @@ export default class AutoMessage {
     }
 
     async stop() {
+        await waitMS(300);
+
         const data = await this.#Recorder.stop();
 
         // Send blob as a base64 string.
