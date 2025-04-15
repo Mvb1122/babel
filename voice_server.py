@@ -69,7 +69,7 @@ def MakeTranscriber():
 language_id = None
 
 # Simple request, used for identifying when to translate.
-def GetLang(natural):
+def getLang(natural):
   global language_id
   if type(language_id) is type(None):
     language_id = pipeline("text-classification", model="papluca/xlm-roberta-base-language-detection", device=device)
@@ -83,7 +83,7 @@ def transcribe(path):
     transcriber = MakeTranscriber()
     
   natural = transcriber(path)['text']
-  lang = GetLang(natural)
+  lang = getLang(natural)
   print(natural)
   print(lang)
   
