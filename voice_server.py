@@ -2,7 +2,7 @@ transcription_model_id = "openai/whisper-large-v3-turbo"
 musicgen_model_id = "facebook/musicgen-stereo-small"
 tts_model_id = "microsoft/speecht5_tts"
 
-from transformers import pipeline, AutoModelForSeq2SeqLM, AutoTokenizer
+from transformers import pipeline
 from transformers.utils import is_flash_attn_2_available
 from transformers.utils import is_torch_sdpa_available
 import soundfile as sf
@@ -55,7 +55,7 @@ def MakeTranscriber():
     model=model,
     tokenizer=processor.tokenizer,
     feature_extractor=processor.feature_extractor,
-    max_new_tokens=128,
+    # max_new_tokens=128,
     chunk_length_s=30,
     batch_size=16,
     return_timestamps=False,
@@ -82,10 +82,16 @@ def transcribe(path):
   if type(transcriber) is type(None):
     transcriber = MakeTranscriber()
     
-  natural = transcriber(path)['text']
+  transcribeData = transcriber(path);
+
+  print(transcribeData)
+
+  natural = transcribeData['text']
   lang = getLang(natural)
+  embedNum = findLikelyEmbed(path)
   print(natural)
   print(lang)
+  print(embedNum)
   
   # If the language isn't english, then translate it.
   translation = None
@@ -96,7 +102,8 @@ def transcribe(path):
   data = {
     "text": natural,
     "source": lang,
-    "translation": translation
+    "translation": translation,
+    "user": embedNum
   }
   print(data)
   return data
@@ -143,19 +150,65 @@ def voice(Text, Embedding, File = "./Temp/Whatever.wav"):
   print("Generation Time: " + str(used_time))
   return True
 
-def embed(source, target):
-  # First, denoise audio.
+from speechbrain.inference.speaker import EncoderClassifier
+voiceClassifier = EncoderClassifier.from_hparams(source="speechbrain/spkrec-xvect-voxceleb", savedir="pretrained_models/spkrec-xvect-voxceleb", run_opts={"device":device})
+def embedToMemory(source):
+  global voiceClassifier
+
+   # First, denoise audio.
   signal, fs = torchaudio.load(source)
-  auto_scale = True # Recommended for low-volume input audio
-  signal = denoiser.process_waveform(waveform=signal, sample_rate=16000, auto_scale=auto_scale)
+  # auto_scale = True # Recommended for low-volume input audio
+  # signal = denoiser.process_waveform(waveform=signal, sample_rate=16000, auto_scale=auto_scale)
 
   # Calculate speech embeddings.
-  from speechbrain.inference.speaker import EncoderClassifier
-  classifier = EncoderClassifier.from_hparams(source="speechbrain/spkrec-xvect-voxceleb", savedir="pretrained_models/spkrec-xvect-voxceleb", run_opts={"device":device})
-  embeddings = classifier.encode_batch(signal)
+  embeddings = voiceClassifier.encode_batch(signal).detach()
 
   # Here, embeddings is length 2048, so we need to squeeze it down.
   embeddings = torch.nn.functional.normalize(embeddings[:, :512], dim=-1).squeeze([1]) # Changes size from [1, 1, 1, 512] to [1, 512]
+  return embeddings;
+
+import sys
+embedList = []
+newSpeakerDistance = 6
+def findLikelyEmbed(source):
+   # Okay, so here's the plan:
+    # 1. Maintain a list of embeds from this run (keep in memory so lost between runs.)
+    # 2. Embed the passed file.
+    # 3. Compare the embed to all previous ones.
+    # 4. If it's above a certain distance, then add as a new speaker and return a new index.
+    # 5. If below, just return the index that it best matched.
+  
+  # 1. 
+  global embedList
+
+  # 2. 
+  thisEmbed = embedToMemory(source)
+
+  # 3.
+  closestIndex = -1
+  minDistance = sys.maxsize
+  for i in range(len(embedList)):
+     val = embedList[i]
+     distance = torch.sum(torch.sqrt(torch.sum(torch.pow(torch.subtract(thisEmbed, val), 2), dim=0))) 
+
+     if (distance < minDistance): 
+      closestIndex = i
+      minDistance = distance
+
+  print(closestIndex)
+  print(minDistance)
+     
+  # 4.
+  if (minDistance > newSpeakerDistance):
+    embedList.append(thisEmbed)
+    return len(embedList) - 1
+  
+  # 5.
+  else: 
+    return closestIndex
+
+def embed(source, target):
+  embeddings = embedToMemory(source);
 
   # Write embeddings to a file.
   print(embeddings.size())

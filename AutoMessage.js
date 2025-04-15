@@ -60,7 +60,7 @@ export default class AutoMessage {
 
         const message = new Message({
             Time: undefined,
-            User: "Who knows!!!",
+            User: v.user,
             Language: v.source,
             Content: v.text,
             Translation: v.translation,
