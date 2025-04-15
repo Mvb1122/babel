@@ -19,10 +19,10 @@ module.exports = {
                     await StartServer();
             }
         
-            const DemoAudioPath = "./Demo_Audio/";
-            const paths = fs.readdirSync(DemoAudioPath);
-            
-            for (let i = 0; i < 10; i++)
+            else {
+                const DemoAudioPath = "./Demo_Audio/";
+                const paths = fs.readdirSync(DemoAudioPath);
+                
                 for (let j = 0; j < paths.length; j++) {
                     const f = paths[j];
         
@@ -34,6 +34,7 @@ module.exports = {
                         console.log(x)
                     }
                 }
+            }
         })
     }
 }
