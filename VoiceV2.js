@@ -2,7 +2,7 @@
 /**
  * A boolean which describes whether to log the internal server process stuff.
  */
-const DoConsoleLog = false;
+const DoConsoleLog = true;
 const VoiceDir = "/Voice Embeddings/";
 const DefaultEmbedding = `luminary.bin`;
 //#endregion
@@ -101,9 +101,10 @@ function postJSON(URL, data) {
  * @returns {Promise} A promise which resolves when the AI is running.
  */
 function Start() {
+    console.log("Starting AI server! Please wait. (This is different than the web server.)")
     return new Promise(res => {
         // Run the python server.
-        const pythonProcess = spawn('python3', ['voice_server.py']);
+        const pythonProcess = spawn('python', ['voice_server.py']);
 
         // Handle process exit events to ensure the Python server is killed when Node.js exits
         process.on('exit', () => {
@@ -116,13 +117,14 @@ function Start() {
             
             if (data.includes("Running on")) {
                 Started = true;
+                console.log("Server started!");
                 res();
             }
         });
 
         if (DoConsoleLog)    
             pythonProcess.stdout.on('data', (data) => {
-                    console.log(data.toString());
+                console.log(data.toString());
             });
     })
 }
