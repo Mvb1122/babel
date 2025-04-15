@@ -3,6 +3,7 @@
  * A boolean which describes whether to log the internal server process stuff.
  */
 const DoConsoleLog = true;
+const DoConsoleLogFFMPEG = false;
 const VoiceDir = "/Voice Embeddings/";
 const DefaultEmbedding = `luminary.bin`;
 //#endregion
@@ -101,6 +102,10 @@ function postJSON(URL, data) {
  * @returns {Promise} A promise which resolves when the AI is running.
  */
 function Start() {
+    if (Started) return new Promise(res => {
+        res();
+    });
+
     console.log("Starting AI server! Please wait. (This is different than the web server.)")
     return new Promise(res => {
         // Run the python server.
@@ -122,10 +127,17 @@ function Start() {
             }
         });
 
-        if (DoConsoleLog)    
+        if (DoConsoleLog) {
             pythonProcess.stdout.on('data', (data) => {
                 console.log(data.toString());
             });
+
+            /*
+            pythonProcess.stderr.on('data', (data) => {
+                console.log(data.toString());
+            });
+            */
+        }
     })
 }
 
@@ -145,7 +157,7 @@ function ConvertFFMPEG(AudioFileName, AdditionalSettings = undefined) {
         // Finally, add output stuff.
         options = options.concat([OutputName, `-y`]);
 
-        if (DoConsoleLog)
+        if (DoConsoleLogFFMPEG)
             console.log(`ffmpeg ${options.join(" ")}`);
         
         const ffmpeg = spawn('ffmpeg', options);
@@ -154,7 +166,7 @@ function ConvertFFMPEG(AudioFileName, AdditionalSettings = undefined) {
             res(OutputName);
         })
 
-        if (DoConsoleLog) {
+        if (DoConsoleLogFFMPEG) {
             ffmpeg.stderr.on('data', (d) => console.log(d.toString()));
         }
     })
