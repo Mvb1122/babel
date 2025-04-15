@@ -40,6 +40,8 @@ let MinCheckTime = 0.17;
 
 // Use an accumulator system to decide whether we should be listening or not.
 let confidence = 1.0; // 1 = 100% confident, 0 = 0% confident.
+const startStopConfidence = 0.7;
+let averageWeight = 4;
 async function AudioLoop() {
     let CurrentMessage = null;
     do {
@@ -47,27 +49,25 @@ async function AudioLoop() {
         await new Promise(res => {
             setTimeout(async () => {
                 vol = await vol;
-                if (CurrentMessage != null) {
-                    avgAudio += (vol + avgAudio * 2) / 3 // Decrease the effect that a single moment has.    
-                } else {
-                    avgAudio += (vol + avgAudio * 3) / 4 // Decrease the effect that a single moment has.
-                }
+                avgAudio = (vol + avgAudio * averageWeight) / (averageWeight + 1) 
                 
-                avgAudio /= 2; // Constant decay.
+                if (vol > avgAudio && CurrentMessage == null) confidence += 0.5;
+                else if (vol < avgAudio) confidence -= 0.045;
+                
+                // Clamp confidence 0-1
+                confidence = Math.min(Math.max(confidence, 0), 1);
 
-                if (vol > avgAudio && CurrentMessage == null && confidence < 1) confidence += 0.5;
-                else if (vol > avgAudio && CurrentMessage != null && confidence < 1) confidence += 0.06;
-                else if (vol < avgAudio && confidence > 0) confidence -= 0.045;
+                confidence *= 99/100; // Constant decay.
                 
                 console.log({avg: avgAudio, vol: vol, confidence: confidence});
                 
-                if (confidence < 0.4 && CurrentMessage != null) {
+                if (confidence < startStopConfidence && CurrentMessage != null) {
                     CurrentMessage.stop();
                     CurrentMessage = null;
                     document.getElementById("Header").innerText = StatusOffSymbol;
                 }
 
-                else if (confidence > 0.4 && CurrentMessage == null) { // || (vol == 0 && 0 == avgAudio)
+                else if (confidence > startStopConfidence && CurrentMessage == null) { // || (vol == 0 && 0 == avgAudio)
                     CurrentMessage = new AutoMessage();
                     document.getElementById("Header").innerText = StatusOnSymbol;
                 }
