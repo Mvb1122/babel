@@ -289,5 +289,5 @@ if (!DEBUG)
 
 //Preload on server boot!
 const { bootup } = require('./Bootup');
-bootup(true);
+bootup(false);
 StartServer();
