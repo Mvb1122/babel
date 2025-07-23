@@ -64,7 +64,7 @@ const PhoneticSymbols = [
 /**
  * A boolean which states if the voice server has already been started. Should be treated as read-only.
  */
-let Started = true, 
+let Started = false, 
 /** A boolean which states if the transcription AI has been loaded or not. */
 transcribe_loaded = false;
 
@@ -94,6 +94,11 @@ function postJSON(URL, data) {
                 rej(text);
             }
         });
+
+        request.catch(e => {
+            Restart();
+            rej("Something went wrong.")
+        })
     })
 }
 
@@ -139,6 +144,11 @@ function Start() {
             */
         }
     })
+}
+
+function Restart() {
+    pythonProcess.kill();
+    Start();
 }
 
 function ConvertFFMPEG(AudioFileName, AdditionalSettings = undefined) {

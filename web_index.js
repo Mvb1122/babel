@@ -40,10 +40,10 @@ let MinCheckTime = 0.17;
 
 // Use an accumulator system to decide whether we should be listening or not.
 let confidence = 1.0; // 1 = 100% confident, 0 = 0% confident.
-const startStopConfidence = 0.7;
+const startStopConfidence = 0.4;
 let averageWeight = 4;
+let CurrentMessage = null;
 async function AudioLoop() {
-    let CurrentMessage = null;
     do {
         let vol = GetAverageVolume();
         await new Promise(res => {
@@ -52,6 +52,7 @@ async function AudioLoop() {
                 avgAudio = (vol + avgAudio * averageWeight) / (averageWeight + 1) 
                 
                 if (vol > avgAudio && CurrentMessage == null) confidence += 0.5;
+                else if (vol > avgAudio) confidence += 0.1;
                 else if (vol < avgAudio) confidence -= 0.045;
                 
                 // Clamp confidence 0-1
@@ -91,3 +92,11 @@ GetAverageVolume().then(v => {
     document.getElementById("StartButton").onclick = AudioLoop;
     document.getElementById("Header").innerText += " Ready!";
 })
+
+// Start new message whenever space bar is hit.
+document.addEventListener('keypress', (event) => {
+  if (event.key == " ") {
+    CurrentMessage.stop();
+    CurrentMessage = new AutoMessage();
+  }
+});

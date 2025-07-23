@@ -169,7 +169,7 @@ def embedToMemory(source):
 
 import sys
 embedList = []
-newSpeakerDistance = 6
+newSpeakerDistance = 3
 def findLikelyEmbed(source):
    # Okay, so here's the plan:
     # 1. Maintain a list of embeds from this run (keep in memory so lost between runs.)
