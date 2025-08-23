@@ -12,10 +12,17 @@
         }
 
         body {
-            background-color: black;
-            color: white;
+            background-color: white;
+            color: black;
             font-family: sans-serif;
             font-size: large;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            body {
+                background-color: black;
+                color: white;
+            }
         }
 
         table {
@@ -38,7 +45,7 @@
 
         /* User */
         td:nth-child(2) {
-            color: purple;
+            color: aqua;
             width: min-content;
         }
 
@@ -86,19 +93,28 @@
             height: 100%;
             background-color: green;
         }
+
+        div[id="AverageDisplayInner"] {
+            height: 100%;
+            background-color: red;
+            width: 0.5em;
+            position: absolute;
+            top: 0%;
+        }
     </style>
 </head>
 <body>
-    <div>
+    <div style="position: sticky; top:0.5em">
         <button id="StartButton">Start!</button>
         <button id="TestButton">Test!</button>
         <p id="Header">⚪</p>
         <div id="ConfidenceDisplay">
-            <div id="ConfidenceDisplayInner" confidence="1"></div>
+            <div id="ConfidenceDisplayInner"></div>
+            <div id="AverageDisplayInner" hidden></div>
         </div>
     </div>
     <table>
-        <tr>
+        <tr style="position: sticky; top: 1.7em; background-color: grey; color: red">
             <th>Time</th>
             <th>User</th>
             <th>Source</th>
@@ -107,9 +123,9 @@
 
         <tbody id="List">
             <tr>
-                <td>[11:25]</td>
-                <td>Micah</td>
-                <td>JP</td>
+                <td>[00:00]</td>
+                <td>test</td>
+                <td>ja</td>
                 <td>
                     コンテント コンテント コンテント コンテント コンテント コンテント コンテント コンテント コンテント コンテント コンテント コンテント コンテント コンテント コンテント
                     <p>Content Content Content Content Content Content Content Content Content Content Content Content Content Content Content Content Content Content Content</p>       
