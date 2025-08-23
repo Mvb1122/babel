@@ -241,6 +241,24 @@ def Make_Music(prompt, output, length = 5):
   sf.write(output, music["audio"][0].T, music["sampling_rate"])
   return True
 
+speechDetection = None
+def Detect_Speech(source):
+  global speechDetection
+  if (type(speechDetection) is type(None)):
+    speechDetection = pipeline(
+        "audio-classification",
+        model="pipecat-ai/smart-turn-v2",
+        feature_extractor="facebook/wav2vec2-base"
+    )
+
+  speech, sr = sf.read(source)
+  if sr != 16_000:
+      raise ValueError("Please resample audio to 16khz for speech detection!")
+
+  result = speechDetection(speech, top_k=None)[0]
+  print(f"Completed turn? {result['label']}  Prob: {result['score']:.3f}")
+  return { "label": result['label'], "prob": result['score'] }
+
 # Server stuff.
 from flask import Flask, jsonify, request
 app = Flask(__name__)
@@ -315,6 +333,17 @@ def music_function():
           return jsonify({'message': True}), 200
       else:
           return jsonify({'error': 'Invalid JSON structure', 'data': data}), 400
+  else:
+      return jsonify({'error': 'Request must be JSON', 'data': request.form }), 400
+
+@app.route("/det_spch", methods=['POST'])
+def detect_speech_function():
+  if request.is_json:
+    data = request.get_json()
+    if 'source' in data:
+        return jsonify({'message': Detect_Speech(data['source'])}), 200
+    else:
+        return jsonify({'error': 'Invalid JSON structure', 'data': data}), 400
   else:
       return jsonify({'error': 'Request must be JSON', 'data': request.form }), 400
 
