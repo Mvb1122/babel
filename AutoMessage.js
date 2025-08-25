@@ -1,16 +1,6 @@
-import { blobToBase64, postJSON } from "./Helpers.js";
+import { blobToBase64, postJSON, ArrayBufferToBase64 } from "./Helpers.js";
 import Recorder from "./Recorder.js"
 import Message from "./Message.js"
-
-function ArrayBufferToBase64(buffer) {
-    var binary = '';
-    var bytes = new Uint8Array(buffer);
-    var len = bytes.byteLength;
-    for (var i = 0; i < len; i++) {
-        binary += String.fromCharCode(bytes[i]);
-    }
-    return window.btoa(binary);
-}
 
 /**
  * @param {Number} ms 
@@ -80,8 +70,9 @@ export default class AutoMessage {
             messagesByUser.set(v.user, [el]);
         }
 
-        // Put new messages at the start.
-        document.getElementById("List").prepend(el)
+        // Put new messages at the end and scroll to them.
+        document.getElementById("List").append(el);
+        el.scrollIntoView({behavior: "smooth", "block": "nearest"});
         // document.getElementById("List").innerHTML = message.GetHTML().outerHTML + document.getElementById("List").innerHTML;
     }
 

@@ -1,5 +1,5 @@
 import Recorder from './Recorder.js'
-import { GetAverageVolume } from './Helpers.js'
+import { GetAverageVolume, ArrayBufferToBase64, postJSON } from './Helpers.js'
 import AutoMessage from './AutoMessage.js';
 
 export async function Test() {
@@ -35,67 +35,72 @@ const StatusOffSymbol = '🔴'
 const rootStyles = window.getComputedStyle(document.documentElement);
 const maxConfidenceWidth = rootStyles.getPropertyValue('--max-confidence-width');
 
-let avgAudio = 1e-63;
-let MinCheckTime = 0.17;
+let chunkLength = 0.3 * 1000; // half second per check. (1000ms/s)
 
 // Use an accumulator system to decide whether we should be listening or not.
-let confidence = 1.0; // 1 = 100% confident, 0 = 0% confident.
-const startStopConfidence = 0.4;
-let averageWeight = 4;
 let CurrentMessage = null;
 async function AudioLoop() {
     do {
-        let vol = GetAverageVolume();
+        // Start a new recording so we can analyze it.
+        const chunkRecording = new Recorder();
+        await chunkRecording.start();
         await new Promise(res => {
             setTimeout(async () => {
-                vol = await vol;
-                avgAudio = (vol + avgAudio * averageWeight) / (averageWeight + 1) 
-                
-                if (vol > avgAudio && CurrentMessage == null) confidence += 0.5;
-                else if (vol > avgAudio) confidence += 0.1;
-                else if (vol < avgAudio) confidence -= 0.045;
-                
-                // Clamp confidence 0-1
-                confidence = Math.min(Math.max(confidence, 0), 1);
+                // Stop recording after a chunkLength of time.
+                const data = await chunkRecording.stop();
 
-                confidence *= 99/100; // Constant decay.
-                
-                console.log({avg: avgAudio, vol: vol, confidence: confidence});
-                
-                if (confidence < startStopConfidence && CurrentMessage != null) {
+                // Send it to server for analysis.
+                    // Send blob as a base64 string.
+                const Buffer = await data.data.arrayBuffer();
+                const b64 = ArrayBufferToBase64(Buffer);
+                /**
+                 * @type {{{time: number, vad: number, snr: number, c50: number}}}
+                 */
+                const analysisResult = await postJSON("./Post_Modules/IsTurnOver.js", b64, false, data.mime)
+                let avgVad = 0;
+                for (let i = 0; i < Object.keys(analysisResult).length - 1; i++) {
+                    const part = analysisResult[i]; 
+                    avgVad += part.vad;
+                }
+                avgVad /= Object.keys(analysisResult).length;
+
+                console.log("Average VAD: " + avgVad);
+
+                if (avgVad <= 0.3 && CurrentMessage != null) { // 0 is perfect done.
                     CurrentMessage.stop();
                     CurrentMessage = null;
                     document.getElementById("Header").innerText = StatusOffSymbol;
                 }
 
-                else if (confidence > startStopConfidence && CurrentMessage == null) { // || (vol == 0 && 0 == avgAudio)
+                else if (avgVad >= 0.3 && CurrentMessage == null) { // 1 means still speaking.
                     CurrentMessage = new AutoMessage();
                     document.getElementById("Header").innerText = StatusOnSymbol;
                 }
 
-                // Set confidence meter.
-                document.getElementById("ConfidenceDisplayInner").style.width = `calc(${confidence} * ${maxConfidenceWidth})`;
+                // Set confidence and average meters.
+                document.getElementById("ConfidenceDisplayInner").style.width = `calc(${avgVad} * ${maxConfidenceWidth})`;
 
                 res();
-            }, MinCheckTime * 2);
+            }, chunkLength);
         })
     } while (true);
 }
 // AudioLoop();
 
+let MinCheckTime = 0;
 let time = performance.now()
 GetAverageVolume().then(v => {
     MinCheckTime = ((performance.now() - time) / 1000).toFixed(2)
-    avgAudio = v;
+    let avgAudio = v;
     console.log(`Time for single GetAvgAudio(): ${MinCheckTime}\nVolume:${v}`);
     
     document.getElementById("StartButton").onclick = AudioLoop;
     document.getElementById("Header").innerText += " Ready!";
 })
 
-// Start new message whenever space bar is hit.
+// Start new message whenever z key is hit.
 document.addEventListener('keypress', (event) => {
-  if (event.key == " ") {
+  if (event.key == "z") {
     CurrentMessage.stop();
     CurrentMessage = new AutoMessage();
   }

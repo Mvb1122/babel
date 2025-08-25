@@ -245,19 +245,42 @@ speechDetection = None
 def Detect_Speech(source):
   global speechDetection
   if (type(speechDetection) is type(None)):
-    speechDetection = pipeline(
-        "audio-classification",
-        model="pipecat-ai/smart-turn-v2",
-        feature_extractor="facebook/wav2vec2-base"
-    )
+    makeSpeechDetection()
 
-  speech, sr = sf.read(source)
-  if sr != 16_000:
-      raise ValueError("Please resample audio to 16khz for speech detection!")
+  # apply model 
+  from pyannote.audio import Inference
+  inference = Inference(speechDetection)
+  output = inference(source)
 
-  result = speechDetection(speech, top_k=None)[0]
-  print(f"Completed turn? {result['label']}  Prob: {result['score']:.3f}")
-  return { "label": result['label'], "prob": result['score'] }
+  # Convert to array of JSON objects.
+  json_array = []
+  inference = Inference(speechDetection)
+  output = inference(source)
+
+  # iterate over each frame
+  for frame, (vad, snr, c50) in output:
+      t = frame.middle
+      json_array.append({"time": float(t), "vad": float(vad), "snr": float(snr), "c50": float(c50)})
+
+  return json_array
+
+  #  ...
+  # 12.952 vad=100% snr=51 c50=17
+  # 12.968 vad=100% snr=52 c50=17
+  # 12.985 vad=100% snr=53 c50=17
+  # ...
+
+
+def makeSpeechDetection():
+    global speechDetection
+    # 1. visit hf.co/pyannote/brouhaha and accept user conditions
+    # 2. visit hf.co/settings/tokens to create an access token
+    # 3. instantiate pretrained model
+    from pyannote.audio import Model
+    speechDetection = Model.from_pretrained("pyannote/brouhaha", use_auth_token="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")
+
+makeSpeechDetection() # Call on boot.
+print(Detect_Speech("test.wav"))
 
 # Server stuff.
 from flask import Flask, jsonify, request
@@ -297,14 +320,17 @@ def embed_function():
 
 @app.route('/transcribe', methods=['POST'])
 def transcribe_function():
-  if request.is_json:
-      data = request.get_json()
-      if 'source' in data:
-          return jsonify({'message': transcribe(data['source'])}), 200
-      else:
-          return jsonify({'error': 'Invalid JSON structure', 'data': data}), 400
-  else:
-      return jsonify({'error': 'Request must be JSON', 'data': request.form }), 400
+  try:
+    if request.is_json:
+        data = request.get_json()
+        if 'source' in data:
+            return jsonify({'message': transcribe(data['source'])}), 200
+        else:
+            return jsonify({'error': 'Invalid JSON structure', 'data': data}), 400
+    else:
+        return jsonify({'error': 'Request must be JSON', 'data': request.form }), 400
+  except:
+     return jsonify({'error': 'Internal server error.', 'data': request.form }), 500
 
 @app.route('/preload_transcribe', methods=['POST', 'GET'])
 def preload_transcribe():

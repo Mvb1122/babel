@@ -96,7 +96,7 @@ function postJSON(URL, data) {
         });
 
         request.catch(e => {
-            Restart();
+            // Restart();
             rej("Something went wrong.")
         })
     })
@@ -147,6 +147,7 @@ function Start() {
 }
 
 function Restart() {
+    console.log("Restarting Python process!")
     pythonProcess.kill();
     Start();
 }
