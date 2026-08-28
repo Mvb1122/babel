@@ -322,7 +322,7 @@ def makeSpeechDetection():
     # 2. visit hf.co/settings/tokens to create an access token
     # 3. instantiate pretrained model
     from pyannote.audio import Model
-    model = Model.from_pretrained("pyannote/brouhaha", use_auth_token="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")
+    model = Model.from_pretrained("pyannote/brouhaha")
     speechDetection = Inference(model, device=torch.device(device))  # Ensure device is a torch.device object
 
 makeSpeechDetection() # Call on boot.
