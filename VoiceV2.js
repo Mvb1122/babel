@@ -86,8 +86,8 @@ function postJSON(URL, data) {
         })
             
         request.then(async (a) => {
-            const text = await a.text();
             // console.log(text)
+            const text = await a.text();
             try {
                 res(JSON.parse(text));
             } catch {
@@ -96,7 +96,7 @@ function postJSON(URL, data) {
         });
 
         request.catch(e => {
-            Restart();
+            // Restart();
             rej("Something went wrong.")
         })
     })
@@ -147,7 +147,9 @@ function Start() {
 }
 
 function Restart() {
+    console.log("Restarting Python process!")
     pythonProcess.kill();
+    Started = false;
     Start();
 }
 
@@ -418,7 +420,39 @@ module.exports = {
                 });
             else res();
         })
-    }
+    },
+
+    /**
+     * Analyzes a cut of audio to tell if the speaker is done speeking.
+     * @param {String} location Path to analyze from.
+     * @returns {Promise<{label: string, prob: number}>} A promise which resolves the audio's probability of having speech.
+     */
+    DetectSpeech(location) {
+        return new Promise(async (res, rej) => {
+            if (LastTranscribe != null) await LastTranscribe;
+            // Wait for last transcription request to finish before starting this one.
+            if (!Started) await Start();
+
+            ConvertFFMPEG(location).then(name => {
+                postJSON("http://127.0.0.1:4963/det_spch", {
+                    source: name
+                }).then((e) => {
+                    // Delete the converted file.
+                    if (!DEBUG) fp.unlink(name);
+                    res(e.message);
+                }, (e) => {
+                    // If we fail, still delete. Just reject the error I guess.
+                    try {
+                        if (!DEBUG) fp.unlink(name);
+                    } catch {
+                        ; // Do nothing.
+                    }
+                    console.error(e);
+                    rej(e);
+                });
+        });
+        })
+    },
 }
 // Debug.
 /*

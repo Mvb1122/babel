@@ -1,25 +1,27 @@
-transcription_model_id = "openai/whisper-large-v3-turbo"
+transcription_model_id = "nvidia/parakeet-tdt-0.6b-v3" # "openai/whisper-large-v3-turbo" # "openai/whisper-tiny"
 musicgen_model_id = "facebook/musicgen-stereo-small"
 tts_model_id = "microsoft/speecht5_tts"
 
 from transformers import pipeline
 from transformers.utils import is_flash_attn_2_available
-from transformers.utils import is_torch_sdpa_available
 import soundfile as sf
 import torch
 import time
 import torchaudio
-from audio_denoiser.AudioDenoiser import AudioDenoiser
+from smart_turn_v3_inference import predict_endpoint as smart_turn_predict_endpoint
+from smart_turn_v3_inference import build_session as smart_turn_build_session
+import librosa
+import numpy as np
+# from audio_denoiser.AudioDenoiser import AudioDenoiser
 
 used_time = time.time()
 embedding_file_name = "./Voice Embeddings/New_Embedding.bin"
 
-device = "cpu"
-if (torch.cuda.is_available()): device = "cuda:0"
+device = "cuda:0" if torch.cuda.is_available() else "cpu"
 torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
 attn_implementation = None
 if is_flash_attn_2_available(): attn_implementation = "flash_attention_2"
-elif is_torch_sdpa_available(): attn_implementation = "sdpa"
+elif hasattr(torch.nn.functional, "scaled_dot_product_attention"): attn_implementation = "sdpa"
 
 print("Running audio synth on " + device)
 print("Attn mode: " + str(attn_implementation))
@@ -31,22 +33,30 @@ def Make_Synth():
 synthesiser = None
 
 # Also load denoiser.
-denoiser = AudioDenoiser(device=torch.device(device))
-used_time = time.time() - used_time
-print("Loading time: " + str(used_time))
+# denoiser = AudioDenoiser(device=torch.device(device))
 
 # Gets transcription AI stuff.
 transcriber = None
 def MakeTranscriber():
   global transcriber
-  from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor
+  # Load smart turn also.
+  smart_turn_build_session("./smart-turn-v3.0.onnx")
+
+  from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, AutoModelForTDT
   torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
+
+  processor = AutoProcessor.from_pretrained(transcription_model_id)
+  model = AutoModelForTDT.from_pretrained(transcription_model_id, dtype="auto", device_map=device)
+
+  '''
   model = AutoModelForSpeechSeq2Seq.from_pretrained(
     transcription_model_id, torch_dtype=torch_dtype, 
     low_cpu_mem_usage=True, 
     use_safetensors=True,
-    attn_implementation=attn_implementation
+    attn_implementation=attn_implementation,
   )
+  '''
+
   model.to(device)
   processor = AutoProcessor.from_pretrained(transcription_model_id)
 
@@ -56,10 +66,10 @@ def MakeTranscriber():
     tokenizer=processor.tokenizer,
     feature_extractor=processor.feature_extractor,
     # max_new_tokens=128,
-    chunk_length_s=30,
+    chunk_length_s=15,
     batch_size=16,
     return_timestamps=False,
-    torch_dtype=torch_dtype,
+    dtype=torch_dtype,
     device=device,
   )
   
@@ -82,7 +92,7 @@ def transcribe(path):
   if type(transcriber) is type(None):
     transcriber = MakeTranscriber()
     
-  transcribeData = transcriber(path);
+  transcribeData = transcriber(path)
 
   print(transcribeData)
 
@@ -150,10 +160,13 @@ def voice(Text, Embedding, File = "./Temp/Whatever.wav"):
   print("Generation Time: " + str(used_time))
   return True
 
-from speechbrain.inference.speaker import EncoderClassifier
-voiceClassifier = EncoderClassifier.from_hparams(source="speechbrain/spkrec-xvect-voxceleb", savedir="pretrained_models/spkrec-xvect-voxceleb", run_opts={"device":device})
+voiceClassifier = None
 def embedToMemory(source):
   global voiceClassifier
+
+  if (type(voiceClassifier) == type(None)):
+    from speechbrain.inference.speaker import EncoderClassifier
+    voiceClassifier = EncoderClassifier.from_hparams(source="speechbrain/spkrec-xvect-voxceleb", savedir="pretrained_models/spkrec-xvect-voxceleb", run_opts={"device":device})
 
    # First, denoise audio.
   signal, fs = torchaudio.load(source)
@@ -165,7 +178,7 @@ def embedToMemory(source):
 
   # Here, embeddings is length 2048, so we need to squeeze it down.
   embeddings = torch.nn.functional.normalize(embeddings[:, :512], dim=-1).squeeze([1]) # Changes size from [1, 1, 1, 512] to [1, 512]
-  return embeddings;
+  return embeddings
 
 import sys
 embedList = []
@@ -178,6 +191,8 @@ def findLikelyEmbed(source):
     # 4. If it's above a certain distance, then add as a new speaker and return a new index.
     # 5. If below, just return the index that it best matched.
   
+  return 0 # Error right now.
+
   # 1. 
   global embedList
 
@@ -208,7 +223,7 @@ def findLikelyEmbed(source):
     return closestIndex
 
 def embed(source, target):
-  embeddings = embedToMemory(source);
+  embeddings = embedToMemory(source)
 
   # Write embeddings to a file.
   print(embeddings.size())
@@ -241,13 +256,85 @@ def Make_Music(prompt, output, length = 5):
   sf.write(output, music["audio"][0].T, music["sampling_rate"])
   return True
 
+def detectSpeechFromFile(file_path):
+  print(f"Loading audio file: {file_path}")
+  
+  # Load the audio file with original sample rate
+  audio, sr = librosa.load(file_path, sr=None, mono=True)
+
+  print(f"Loaded audio with sample rate: {sr} Hz, duration: {len(audio) / sr:.2f} seconds")
+
+  # If needed, resample to 16kHz (the model's expected sample rate)
+  if sr != 16000:
+      print(f"Resampling from {sr}Hz to 16000Hz")
+      audio = librosa.resample(audio, orig_sr=sr, target_sr=16000)
+
+  # Convert audio to float32 if not already
+  if audio.dtype != np.float32:
+      audio = audio.astype(np.float32)
+
+  # Make sure the audio is in the expected range [-1, 1]
+  if np.max(np.abs(audio)) > 1.0:
+      audio = audio / np.max(np.abs(audio))
+
+  # Call the prediction function with both audio and sample rate
+  print("Running endpoint prediction...")
+  result = smart_turn_predict_endpoint(audio)
+
+  # Display results
+  print("\nResults:")
+  print(f"Prediction: {'Complete' if result['prediction'] == 1 else 'Incomplete'}")
+  print(f"Probability of complete: {result['probability']:.4f}")
+  return result
+
+# from pyannote.audio import Inference
+speechDetection = None
+def Detect_Speech(source):
+  '''
+  global speechDetection
+  if (type(speechDetection) is type(None)):
+    makeSpeechDetection()
+
+  # Convert to array of JSON objects.
+  json_array = []
+  output = speechDetection(source)
+
+  # iterate over each frame
+  for frame, (vad, snr, c50) in output:
+      t = frame.middle
+      json_array.append({"time": float(t), "vad": float(vad), "snr": float(snr), "c50": float(c50)})
+
+  return json_array
+
+  #  ...
+  # 12.952 vad=100% snr=51 c50=17
+  # 12.968 vad=100% snr=52 c50=17
+  # 12.985 vad=100% snr=53 c50=17
+  # ...
+  '''
+
+  return detectSpeechFromFile(source)
+
+'''
+def makeSpeechDetection():
+    global speechDetection
+    # 1. visit hf.co/pyannote/brouhaha and accept user conditions
+    # 2. visit hf.co/settings/tokens to create an access token
+    # 3. instantiate pretrained model
+    from pyannote.audio import Model
+    model = Model.from_pretrained("pyannote/brouhaha")
+    speechDetection = Inference(model, device=torch.device(device))  # Ensure device is a torch.device object
+
+makeSpeechDetection() # Call on boot.
+'''
+
 # Server stuff.
 from flask import Flask, jsonify, request
 app = Flask(__name__)
 
 # { location: "wherever", text: "hello there", embed: "whatever" }
 @app.route('/gen', methods=['POST'])
-def voice_function():
+async def voice_function():
     if request.is_json:
         data = request.get_json()
         if 'text' in data and 'location' in data:
@@ -266,7 +353,7 @@ def voice_function():
         return jsonify({'error': 'Request must be JSON', 'data': request.form }), 400
 
 @app.route('/embed', methods=['POST'])
-def embed_function():
+async def embed_function():
     if request.is_json:
         data = request.get_json()
         if 'source' in data and 'output' in data:
@@ -278,18 +365,21 @@ def embed_function():
         return jsonify({'error': 'Request must be JSON', 'data': request.form }), 400
 
 @app.route('/transcribe', methods=['POST'])
-def transcribe_function():
-  if request.is_json:
-      data = request.get_json()
-      if 'source' in data:
-          return jsonify({'message': transcribe(data['source'])}), 200
-      else:
-          return jsonify({'error': 'Invalid JSON structure', 'data': data}), 400
-  else:
-      return jsonify({'error': 'Request must be JSON', 'data': request.form }), 400
+async def transcribe_function():
+  try:
+    if request.is_json:
+        data = request.get_json()
+        if 'source' in data:
+            return jsonify({'message': transcribe(data['source'])}), 200
+        else:
+            return jsonify({'error': 'Invalid JSON structure', 'data': data}), 400
+    else:
+        return jsonify({'error': 'Request must be JSON', 'data': request.form }), 400
+  except:
+     return jsonify({'error': 'Internal server error.', 'data': request.form }), 500
 
 @app.route('/preload_transcribe', methods=['POST', 'GET'])
-def preload_transcribe():
+async def preload_transcribe():
   global transcriber
   ''' Done on boot in this version.
   # Make transcriber if needed.
@@ -299,7 +389,7 @@ def preload_transcribe():
   return jsonify({'Message': True}), 200
 
 @app.route("/gen_music", methods=['POST'])
-def music_function():
+async def music_function():
   if request.is_json:
       data = request.get_json()
       
@@ -318,4 +408,22 @@ def music_function():
   else:
       return jsonify({'error': 'Request must be JSON', 'data': request.form }), 400
 
-app.run(debug=False, port=4963)
+@app.route("/det_spch", methods=['POST'])
+async def detect_speech_function():
+  try:
+    if request.is_json:
+      data = request.get_json()
+      if 'source' in data:
+          return jsonify({'message': Detect_Speech(data['source'])}), 200
+      else:
+          return jsonify({'error': 'Invalid JSON structure', 'data': data}), 400
+    else:
+        return jsonify({'error': 'Request must be JSON', 'data': request.form }), 400
+  except RuntimeError as e:
+    print(e)
+    return jsonify({'error': 'Internal server error', 'data': request.form }), 500
+
+app.run(debug=False, port=4963, threaded=True)
+
+used_time = time.time() - used_time
+print("Loading time: " + str(used_time))

@@ -62,6 +62,16 @@ async function stopVolumeTrackerStream() {
     });
 }
 
+export function ArrayBufferToBase64(buffer) {
+    var binary = '';
+    var bytes = new Uint8Array(buffer);
+    var len = bytes.byteLength;
+    for (var i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary);
+}
+
 /** Tasty stolen code :3 
  * @returns {Promise<number>} 0-100 representing volume.
  * @see https://stackoverflow.com/questions/33322681/checking-microphone-volume-in-javascript

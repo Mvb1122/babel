@@ -44,6 +44,15 @@ if (data) {
                 res.end(JSON.stringify(response));
             })
         })
+        .catch(e => {
+            // Something went wrong. 
+            response.successful = false;
+            response.reason = "Internal Server Failure."
+            response.error = e
+            res.statusCode = 500;
+            res.setHeader("Content-Type", getMime("json"));
+            res.end(JSON.stringify(response));
+        })
 } else {
     response.successful = false;
     response.reason = "No path passed!";

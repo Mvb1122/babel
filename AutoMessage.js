@@ -1,16 +1,6 @@
-import { blobToBase64, postJSON } from "./Helpers.js";
+import { blobToBase64, postJSON, ArrayBufferToBase64 } from "./Helpers.js";
 import Recorder from "./Recorder.js"
 import Message from "./Message.js"
-
-function ArrayBufferToBase64(buffer) {
-    var binary = '';
-    var bytes = new Uint8Array(buffer);
-    var len = bytes.byteLength;
-    for (var i = 0; i < len; i++) {
-        binary += String.fromCharCode(bytes[i]);
-    }
-    return window.btoa(binary);
-}
 
 /**
  * @param {Number} ms 
@@ -53,36 +43,37 @@ export default class AutoMessage {
         data.data = array;
         */
 
-        const v = await postJSON("./Post_Modules/TranscribeAndTranslate.js", b64, false, data.mime)
+        postJSON("./Post_Modules/TranscribeAndTranslate.js", b64, false, data.mime).then(v => {
+            // Passively aggressively make english text smaller.
+            /*
+            if (v.source == 'en') {
+                v.Translation = v.text
+                v.text = null;
+            }
+            */
 
-        // Passively aggressively make english text smaller.
-        /*
-        if (v.source == 'en') {
-            v.Translation = v.text
-            v.text = null;
-        }
-        */
+            const message = new Message({
+                Time: undefined,
+                User: v.user,
+                Language: v.source,
+                Content: v.text,
+                Translation: v.translation,
+            });
 
-        const message = new Message({
-            Time: undefined,
-            User: v.user,
-            Language: v.source,
-            Content: v.text,
-            Translation: v.translation,
-        });
+            const el = message.GetHTML();
 
-        const el = message.GetHTML();
+            // Add to the list by names. 
+            if (messagesByUser.has(v.user)) {
+                messagesByUser.get(v.user).push(el);
+            } else {
+                messagesByUser.set(v.user, [el]);
+            }
 
-        // Add to the list by names. 
-        if (messagesByUser.has(v.user)) {
-            messagesByUser.get(v.user).push(el);
-        } else {
-            messagesByUser.set(v.user, [el]);
-        }
-
-        // Put new messages at the start.
-        document.getElementById("List").prepend(el)
-        // document.getElementById("List").innerHTML = message.GetHTML().outerHTML + document.getElementById("List").innerHTML;
+            // Put new messages at the end and scroll to them.
+            document.getElementById("List").append(el);
+            el.scrollIntoView({behavior: "smooth", "block": "nearest"});
+            // document.getElementById("List").innerHTML = message.GetHTML().outerHTML + document.getElementById("List").innerHTML;
+        })
     }
 
     static renameUser(old, newName) {

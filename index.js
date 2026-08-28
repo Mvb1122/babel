@@ -202,7 +202,7 @@ const requestListener = async function (req, res) {
                     let data; 
                     if (!req.url.includes("Upload.js")) {
                         data = Buffer.concat(binary_data).toString();
-                        if (DEBUG) console.log("Input: `" + data + "`");
+                        // if (DEBUG) console.log("Input: `" + data + "`");
                     } else {
                         data = Buffer.concat(binary_data);
                     }
@@ -291,3 +291,6 @@ if (!DEBUG)
 const { bootup } = require('./Bootup');
 bootup(false);
 StartServer();
+
+// Make Temp folder if not exists. 
+if (!fs.existsSync("./Temp/")) fs.mkdirSync("./Temp/")

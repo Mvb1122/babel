@@ -1,6 +1,7 @@
 /** @type {MediaStreamConstraints} */
 const AudioConstraints = { audio: true };
 
+const sliceLength = 30;
 
 export default class Recorder {
     /** @type {[Blob]} */
@@ -37,7 +38,7 @@ export default class Recorder {
                     })
 
                     // Start the actual recording.
-                    this.#MediaRecorder.start(30);
+                    this.#MediaRecorder.start(sliceLength);
                 });
 
             // If something goes wrong, then cry.
@@ -71,6 +72,18 @@ export default class Recorder {
     
             // Note: I modified the code I was copying here because I won't be performing much in the way of cleanup, since it'll happen automatically when audio level dips.
         });
+    }
+
+    /**
+     * Gets the data without ending the stream.
+     */
+    data() {
+        const mimeType = this.#MediaRecorder.mimeType;
+        let sigmaBlob = new Blob(this.#data, {type: mimeType})
+        return {
+            data: sigmaBlob,
+            mime: mimeType
+        };
     }
 
     #stopStream() {
