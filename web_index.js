@@ -41,8 +41,12 @@ const numRecordings = recordingLength / chunkLength;
 const limit = 0.7;
 
 // Use an accumulator system to decide whether we should be listening or not.
-let CurrentMessage = null;
+let CurrentMessage = null, audioLoopInterval = null, audioLoopRunning = false;
 async function AudioLoop() {
+    // Only run one at a time!!!
+    if (audioLoopRunning) return;
+    audioLoopRunning = true;
+
     // Each time we go around, start a new recording and stop the oldest one.
     const recordings = [];
     function getRec() {
@@ -58,7 +62,7 @@ async function AudioLoop() {
     for (let i = 0; i < numRecordings; i++) startNewRec(); // Start up recordings to start.
     
     let wait = false;
-    setInterval(async () => {
+    audioLoopInterval = setInterval(async () => {
         if (wait) return; // Skip while another interval is still processing. 
         wait = true;
 
@@ -99,7 +103,15 @@ async function AudioLoop() {
         wait = false;
     }, chunkLength);
 }
-// AudioLoop();
+
+function StopRecording() {
+    if (audioLoopInterval !== null) {
+        clearInterval(audioLoopInterval);
+        audioLoopInterval = null;
+    }
+
+    audioLoopRunning = false;
+}
 
 let MinCheckTime = 0;
 let time = performance.now()
@@ -109,6 +121,11 @@ GetAverageVolume().then(v => {
     console.log(`Time for single GetAvgAudio(): ${MinCheckTime}\nVolume:${v}`);
     
     document.getElementById("StartButton").onclick = AudioLoop;
+
+    // Change test button into stop button.
+    document.getElementById("TestButton").onclick = StopRecording;
+    document.getElementById("TestButton").textContent = "Stop"
+
     document.getElementById("Header").innerText += " Ready!";
 })
 

@@ -46,7 +46,7 @@ def MakeTranscriber():
   torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
 
   processor = AutoProcessor.from_pretrained(transcription_model_id)
-  model = AutoModelForTDT.from_pretrained(transcription_model_id, dtype="auto", device_map=device)
+  model = AutoModelForTDT.from_pretrained(transcription_model_id, dtype="auto", device_map=device, low_cpu_mem_usage=True)
 
   '''
   model = AutoModelForSpeechSeq2Seq.from_pretrained(
@@ -91,37 +91,37 @@ def transcribe(path):
   # Make transcriber if needed.
   if type(transcriber) is type(None):
     transcriber = MakeTranscriber()
+
+  with torch.inference_mode():
+    transcribeData = transcriber(path)
+
+    print(transcribeData)
+
+    natural = transcribeData['text']
+    lang = getLang(natural)
+    embedNum = findLikelyEmbed(path)
+    print(natural)
+    print(lang)
+    print(embedNum)
     
-  transcribeData = transcriber(path)
+    # If the language isn't english, then translate it.
+    translation = None
+    if lang != 'en':
+      translation = TranslateToEnglish(natural, lang)
+    
 
-  print(transcribeData)
-
-  natural = transcribeData['text']
-  lang = getLang(natural)
-  embedNum = findLikelyEmbed(path)
-  print(natural)
-  print(lang)
-  print(embedNum)
-  
-  # If the language isn't english, then translate it.
-  translation = None
-  if lang != 'en':
-    translation = TranslateToEnglish(natural, lang)
-  
-
-  data = {
-    "text": natural,
-    "source": lang,
-    "translation": translation,
-    "user": embedNum
-  }
-  print(data)
-  return data
+    data = {
+      "text": natural,
+      "source": lang,
+      "translation": translation,
+      "user": embedNum
+    }
+    print(data)
+    return data
 
 transcriber = MakeTranscriber()
 
 translator = None
-last_trans_id = None
 def MakeTranslator(lang):
   # Even though this could be done by Whisper, I'm using a seperate model for simplicity's sake.
   global translator
@@ -129,9 +129,9 @@ def MakeTranslator(lang):
 
 def TranslateToEnglish(natural, lang):
   global transtokenizer, translator
-  if (type(translator) is type(None)) or not (lang is last_trans_id): MakeTranslator(lang)
+  if (type(translator) is type(None)): MakeTranslator(lang)
   natural = str(natural)
-  return translator(natural, max_length=len(natural) * 10)[0]['translation_text'] # Set a ridiculously high maximum length in order to avoid cutting stuff off.
+  return translator(natural, max_length=len(natural) * 10, src_lang=lang)[0]['translation_text'] # Set a ridiculously high maximum length in order to avoid cutting stuff off.
   
 
 def GetEmbedding(location):

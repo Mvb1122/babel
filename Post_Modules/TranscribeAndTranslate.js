@@ -32,6 +32,13 @@ if (data) {
         .then(() => {
             // Transcribe it.
             Transcribe(Path).then(v => {
+                if (v == null) {
+                    response.successful = false;
+                    res.statusCode = 200;
+                    res.setHeader("Content-Type", getMime("json"));
+                    res.end(JSON.stringify(response));
+                }
+                
                 Object.keys(v).forEach(key => {
                     response[key] = v[key];
                 })
