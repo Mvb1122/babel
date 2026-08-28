@@ -7,11 +7,11 @@ from transformers.utils import is_flash_attn_2_available
 import soundfile as sf
 import torch
 import time
-import torchaudio
 from smart_turn_v3_inference import predict_endpoint as smart_turn_predict_endpoint
 from smart_turn_v3_inference import build_session as smart_turn_build_session
 import librosa
 import numpy as np
+import ctranslate2
 # from audio_denoiser.AudioDenoiser import AudioDenoiser
 
 used_time = time.time()
@@ -42,7 +42,7 @@ def MakeTranscriber():
   # Load smart turn also.
   smart_turn_build_session("./smart-turn-v3.0.onnx")
 
-  from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, AutoModelForTDT
+  from transformers import AutoProcessor, AutoModelForTDT
   torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
 
   processor = AutoProcessor.from_pretrained(transcription_model_id)
@@ -98,10 +98,12 @@ def transcribe(path):
     print(transcribeData)
 
     natural = transcribeData['text']
-    lang = getLang(natural)
-    embedNum = findLikelyEmbed(path)
     print(natural)
+
+    lang = getLang(natural)
     print(lang)
+
+    embedNum = findLikelyEmbed(path)
     print(embedNum)
     
     # If the language isn't english, then translate it.
@@ -121,17 +123,31 @@ def transcribe(path):
 
 transcriber = MakeTranscriber()
 
-translator = None
+translator = None; trans_tokenizer = None
 def MakeTranslator(lang):
-  # Even though this could be done by Whisper, I'm using a seperate model for simplicity's sake.
-  global translator
-  translator = pipeline('translation',model="facebook/nllb-200-distilled-600M", device=device, src_lang=lang, tgt_lang='eng_Latn')
+  # Even though this could be done by Whisper, I'm using a seperate model for having both languages' versions.
+  global translator, trans_tokenizer
+
+  # Download
+  import huggingface_hub
+  huggingface_hub.snapshot_download('entai2965/nllb-200-distilled-600M-ctranslate2',local_dir='nllb-200-distilled-600M-ctranslate2')
+
+  # Construct
+  translator = ctranslate2.Translator("nllb-200-distilled-600M-ctranslate2",device="cpu")
+  from transformers import AutoTokenizer
+  trans_tokenizer = AutoTokenizer.from_pretrained("nllb-200-distilled-600M-ctranslate2", src_lang=lang, clean_up_tokenization_spaces=True)
 
 def TranslateToEnglish(natural, lang):
-  global transtokenizer, translator
-  if (type(translator) is type(None)): MakeTranslator(lang)
+  global trans_tokenizer, translator
+  if (translator is None): MakeTranslator(lang)
   natural = str(natural)
-  return translator(natural, max_length=len(natural) * 10, src_lang=lang)[0]['translation_text'] # Set a ridiculously high maximum length in order to avoid cutting stuff off.
+
+  source = trans_tokenizer.convert_ids_to_tokens(trans_tokenizer.encode(natural))
+  target_prefix = ['eng_Latn']
+  results = translator.translate_batch([source], target_prefix=[target_prefix])
+  target = results[0].hypotheses[0][1:]
+
+  return trans_tokenizer.decode(trans_tokenizer.convert_tokens_to_ids(target))
   
 
 def GetEmbedding(location):
@@ -162,6 +178,7 @@ def voice(Text, Embedding, File = "./Temp/Whatever.wav"):
 
 voiceClassifier = None
 def embedToMemory(source):
+  print("Start Embed on " + source)
   global voiceClassifier
 
   if (type(voiceClassifier) == type(None)):
@@ -169,7 +186,8 @@ def embedToMemory(source):
     voiceClassifier = EncoderClassifier.from_hparams(source="speechbrain/spkrec-xvect-voxceleb", savedir="pretrained_models/spkrec-xvect-voxceleb", run_opts={"device":device})
 
    # First, denoise audio.
-  signal, fs = torchaudio.load(source)
+  audio, fs = sf.read(source, dtype="float32")
+  signal = torch.from_numpy(audio)
   # auto_scale = True # Recommended for low-volume input audio
   # signal = denoiser.process_waveform(waveform=signal, sample_rate=16000, auto_scale=auto_scale)
 
@@ -184,43 +202,50 @@ import sys
 embedList = []
 newSpeakerDistance = 3
 def findLikelyEmbed(source):
-   # Okay, so here's the plan:
-    # 1. Maintain a list of embeds from this run (keep in memory so lost between runs.)
-    # 2. Embed the passed file.
-    # 3. Compare the embed to all previous ones.
-    # 4. If it's above a certain distance, then add as a new speaker and return a new index.
-    # 5. If below, just return the index that it best matched.
-  
-  return 0 # Error right now.
+  try:
+    # Okay, so here's the plan:
+      # 1. Maintain a list of embeds from this run (keep in memory so lost between runs.)
+      # 2. Embed the passed file.
+      # 3. Compare the embed to all previous ones.
+      # 4. If it's above a certain distance, then add as a new speaker and return a new index.
+      # 5. If below, just return the index that it best matched.
 
-  # 1. 
-  global embedList
+    # 1. 
+    global embedList
 
-  # 2. 
-  thisEmbed = embedToMemory(source)
+    # 2. 
+    thisEmbed = embedToMemory(source)
 
-  # 3.
-  closestIndex = -1
-  minDistance = sys.maxsize
-  for i in range(len(embedList)):
-     val = embedList[i]
-     distance = torch.sum(torch.sqrt(torch.sum(torch.pow(torch.subtract(thisEmbed, val), 2), dim=0))) 
+    # 3.
+    closestIndex = 0
+    minDistance = sys.maxsize
+    for i in range(len(embedList)):
+      val = embedList[i]
+      distance = torch.sum(
+          torch.sqrt(
+            torch.sum(torch.pow(torch.subtract(thisEmbed, val), 2), dim=0)
+          )
+      ) 
 
-     if (distance < minDistance): 
-      closestIndex = i
-      minDistance = distance
+      if (distance < minDistance): 
+        closestIndex = i
+        minDistance = distance
 
-  print(closestIndex)
-  print(minDistance)
-     
-  # 4.
-  if (minDistance > newSpeakerDistance):
-    embedList.append(thisEmbed)
-    return len(embedList) - 1
-  
-  # 5.
-  else: 
-    return closestIndex
+    print(closestIndex)
+    print(minDistance)
+      
+    # 4.
+    if (minDistance > newSpeakerDistance):
+      embedList.append(thisEmbed)
+      return len(embedList) - 1
+    
+    # 5.
+    else: 
+      return closestIndex
+  except Exception:
+     import traceback
+     traceback.print_exc()
+     raise
 
 def embed(source, target):
   embeddings = embedToMemory(source)
@@ -375,7 +400,9 @@ async def transcribe_function():
             return jsonify({'error': 'Invalid JSON structure', 'data': data}), 400
     else:
         return jsonify({'error': 'Request must be JSON', 'data': request.form }), 400
-  except:
+  except Exception:
+     import traceback
+     traceback.print_exc()
      return jsonify({'error': 'Internal server error.', 'data': request.form }), 500
 
 @app.route('/preload_transcribe', methods=['POST', 'GET'])

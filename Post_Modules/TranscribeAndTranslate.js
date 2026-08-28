@@ -27,11 +27,11 @@ if (data) {
     console.log(blob);
     */
 
-    const Path = `./Temp/${Math.floor(Math.random() * 1000)}.opus`;
-    return fp.writeFile(Path, Buffer.from(data, 'base64'))
+    const path = `./Temp/${Math.floor(Math.random() * 1000)}.opus`;
+    return fp.writeFile(path, Buffer.from(data, 'base64'))
         .then(() => {
             // Transcribe it.
-            Transcribe(Path).then(v => {
+            Transcribe(path).then(v => {
                 if (v == null) {
                     response.successful = false;
                     res.statusCode = 200;
@@ -43,7 +43,7 @@ if (data) {
                     response[key] = v[key];
                 })
                 
-                if (!DEBUG) fp.unlink(Path);
+                if (!DEBUG) fp.unlink(path);
 
                 response.successful = true;
                 res.statusCode = 200;

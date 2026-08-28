@@ -44,7 +44,10 @@ const limit = 0.7;
 let CurrentMessage = null, audioLoopInterval = null, audioLoopRunning = false;
 async function AudioLoop() {
     // Only run one at a time!!!
-    if (audioLoopRunning) return;
+    if (audioLoopRunning) {
+        console.log("Ignoring second start press!!!")
+        return;
+    }
     audioLoopRunning = true;
 
     // Each time we go around, start a new recording and stop the oldest one.
