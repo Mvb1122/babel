@@ -149,6 +149,7 @@ function Start() {
 function Restart() {
     console.log("Restarting Python process!")
     pythonProcess.kill();
+    Started = false;
     Start();
 }
 
@@ -437,15 +438,16 @@ module.exports = {
                     source: name
                 }).then((e) => {
                     // Delete the converted file.
-                    fp.unlink(name);
+                    if (!DEBUG) fp.unlink(name);
                     res(e.message);
                 }, (e) => {
                     // If we fail, still delete. Just reject the error I guess.
                     try {
-                        fp.unlink(name);
+                        if (!DEBUG) fp.unlink(name);
                     } catch {
                         ; // Do nothing.
                     }
+                    console.error(e);
                     rej(e);
                 });
         });

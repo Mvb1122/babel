@@ -16,16 +16,28 @@ if (data) {
         .then(() => {
             // Analyze it.
             DetectSpeech(Path).then(v => {
-                Object.keys(v).forEach(key => {
-                    response[key] = v[key];
-                })
-                
-                if (!DEBUG) fp.unlink(Path);
+                try {
+                    Object.keys(v).forEach(key => {
+                        response[key] = v[key];
+                    })
+                    
+                    if (!DEBUG) fp.unlink(Path);
 
-                response.successful = true;
-                res.statusCode = 200;
-                res.setHeader("Content-Type", getMime("json"));
-                res.end(JSON.stringify(response));
+                    response.successful = true;
+                    res.statusCode = 200;
+                    res.setHeader("Content-Type", getMime("json"));
+                    res.end(JSON.stringify(response));
+                } catch (e) {
+                    res.statusCode = 500;
+                    res.setHeader("Content-Type", getMime("json"));
+                    res.end(JSON.stringify({
+                        successful: false,
+                        reason: "Internal Server Error.",
+                        error: e
+                    }));
+
+                    console.error(e);
+                }
             })
         })
 } else {
